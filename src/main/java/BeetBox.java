@@ -1,6 +1,8 @@
 import javax.sound.midi.*;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
 public class BeetBox {
@@ -29,19 +31,19 @@ public class BeetBox {
         Box buttonBox = new Box(BoxLayout.Y_AXIS);
 
         JButton start = new JButton("Start");
-        start.addActionListener(new); // добавить метод позже в скобки!
+        start.addActionListener(new MyStartListener()); // добавить метод позже в скобки!
         buttonBox.add(start);
 
         JButton stop = new JButton("Stop");
-        stop.addActionListener(new); // сюда тоже
+        stop.addActionListener(new MyStopListener()); // сюда тоже
         buttonBox.add(stop);
 
         JButton tempoU = new JButton("Tempo Up");
-        tempoU.addActionListener(new); //и сюда
+        tempoU.addActionListener(new MyUpTempoListener()); //и сюда
         buttonBox.add(tempoU);
 
         JButton tempoD = new JButton("Tempo Down");
-        tempoD.addActionListener(new); // и тут
+        tempoD.addActionListener(new MyDawnTempoListener()); // и тут
         buttonBox.add(tempoD);
         Box nameBox = new Box(BoxLayout.Y_AXIS);
         for (int i = 0; i < 16; i++) {
@@ -65,6 +67,7 @@ public class BeetBox {
             mainPanel.add(c);
 
         }
+        setUpMidi();
         theFrame.setBounds(50, 50, 300, 300);
         theFrame.pack();
         theFrame.setVisible(true);
@@ -110,7 +113,54 @@ public class BeetBox {
         } catch (InvalidMidiDataException e) {
            e.printStackTrace();
         }
-
     }
+    public class MyStartListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            buildTrackAndStart();
+        }
+    }
+    public class MyStopListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            sequencer.stop();
+        }
+    }
+    public class MyUpTempoListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            float tempoFactor = sequencer.getTempoFactor();
+            sequencer.setTempoFactor((float)(tempoFactor * 1.03)); // Коэфицент темпа определяет темп синтезатора. По умолчанию он 1.0 поэтому кнопкой мыши можно изменить его на +/- 3%
+
+        }
+    }
+    public class MyDawnTempoListener implements ActionListener{
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            float tempoFactor = sequencer.getTempoFactor();
+            sequencer.setTempoFactor((float) (tempoFactor * .97));
+        }
+    }
+     public void makeTracks(int[] list){  // Метод создает событие для одного инструмента для каждых 16 тактов
+         for (int i = 0; i < 16; i++) {
+             int key = list[i];
+             if (key !=0){
+                 track.add(makeEvent(144,9,key,100,i));
+                 track.add(makeEvent(128,9,key,100,i+1));
+             }
+         }
+     }
+     public MidiEvent makeEvent (int comd,int chan, int one,int two,int tick){
+        MidiEvent event = null;
+        try {
+            ShortMessage a = new ShortMessage();
+            a.setMessage(comd,chan,one,two);
+            event = new MidiEvent(a,tick);
+
+        }catch (Exception e ){
+            e.printStackTrace();
+        }
+        return  event;
+     }
 
 }
