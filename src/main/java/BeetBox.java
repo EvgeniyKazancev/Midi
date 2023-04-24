@@ -3,9 +3,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.*;
 import java.util.ArrayList;
 
 public class BeetBox {
+    ArrayList<JCheckBox> checkboxList;
     JPanel mainPanel;
     ArrayList<JCheckBox> checkBoxes;
     Sequencer sequencer;
@@ -31,20 +33,29 @@ public class BeetBox {
         Box buttonBox = new Box(BoxLayout.Y_AXIS);
 
         JButton start = new JButton("Start");
-        start.addActionListener(new MyStartListener()); // добавить метод позже в скобки!
+        start.addActionListener(new MyStartListener());
         buttonBox.add(start);
 
         JButton stop = new JButton("Stop");
-        stop.addActionListener(new MyStopListener()); // сюда тоже
+        stop.addActionListener(new MyStopListener());
         buttonBox.add(stop);
 
         JButton tempoU = new JButton("Tempo Up");
-        tempoU.addActionListener(new MyUpTempoListener()); //и сюда
+        tempoU.addActionListener(new MyUpTempoListener());
         buttonBox.add(tempoU);
 
         JButton tempoD = new JButton("Tempo Down");
-        tempoD.addActionListener(new MyDawnTempoListener()); // и тут
+        tempoD.addActionListener(new MyDawnTempoListener());
         buttonBox.add(tempoD);
+
+        JButton serialize = new JButton("serialize");
+        serialize.addActionListener(new MySendListener());
+        buttonBox.add(serialize);
+
+        JButton restore = new JButton("restore");
+        restore.addActionListener(new MyReadInListener());
+        buttonBox.add(restore);
+
         Box nameBox = new Box(BoxLayout.Y_AXIS);
         for (int i = 0; i < 16; i++) {
             nameBox.add(new Label(nameInstrument[i]));
@@ -111,56 +122,148 @@ public class BeetBox {
             sequencer.start();
             sequencer.setTempoInBPM(120);
         } catch (InvalidMidiDataException e) {
-           e.printStackTrace();
+            e.printStackTrace();
         }
     }
-    public class MyStartListener implements ActionListener{
+
+    public class MyStartListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             buildTrackAndStart();
         }
     }
-    public class MyStopListener implements ActionListener{
+
+    public class MyStopListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             sequencer.stop();
         }
     }
-    public class MyUpTempoListener implements ActionListener{
+
+    public class MyUpTempoListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             float tempoFactor = sequencer.getTempoFactor();
-            sequencer.setTempoFactor((float)(tempoFactor * 1.03)); // Коэфицент темпа определяет темп синтезатора. По умолчанию он 1.0 поэтому кнопкой мыши можно изменить его на +/- 3%
+            sequencer.setTempoFactor((float) (tempoFactor * 1.03)); // Коэфицент темпа определяет темп синтезатора. По умолчанию он 1.0 поэтому кнопкой мыши можно изменить его на +/- 3%
 
         }
     }
-    public class MyDawnTempoListener implements ActionListener{
+
+    public class MyDawnTempoListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             float tempoFactor = sequencer.getTempoFactor();
             sequencer.setTempoFactor((float) (tempoFactor * .97));
         }
     }
-     public void makeTracks(int[] list){  // Метод создает событие для одного инструмента для каждых 16 тактов
-         for (int i = 0; i < 16; i++) {
-             int key = list[i];
-             if (key !=0){
-                 track.add(makeEvent(144,9,key,100,i));
-                 track.add(makeEvent(128,9,key,100,i+1));
-             }
-         }
-     }
-     public MidiEvent makeEvent (int comd,int chan, int one,int two,int tick){
+
+    public void makeTracks(int[] list) {  // Метод создает событие для одного инструмента для каждых 16 тактов
+        for (int i = 0; i < 16; i++) {
+            int key = list[i];
+            if (key != 0) {
+                track.add(makeEvent(144, 9, key, 100, i));
+                track.add(makeEvent(128, 9, key, 100, i + 1));
+            }
+        }
+    }
+
+    public MidiEvent makeEvent(int comd, int chan, int one, int two, int tick) {
         MidiEvent event = null;
         try {
             ShortMessage a = new ShortMessage();
-            a.setMessage(comd,chan,one,two);
-            event = new MidiEvent(a,tick);
+            a.setMessage(comd, chan, one, two);
+            event = new MidiEvent(a, tick);
 
-        }catch (Exception e ){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return  event;
-     }
+        return event;
+    }
 
+    public class MySendListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            boolean[] checkboxState = new boolean[256];
+            for (int i = 0; i < 256; i++) {
+
+                JCheckBox check = checkboxList.get(i);
+                if (check.isSelected()) {
+                    checkboxState[i] = true;
+                }
+            }
+            try {
+                FileOutputStream fileStream = new FileOutputStream(new File("src/main/resources/Checkbox.ser"));
+                ObjectOutputStream os = new ObjectOutputStream(fileStream);
+
+                os.writeObject(checkboxState);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    public class MyReadInListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            boolean[] checkboxState = null;
+            try {
+                FileInputStream fileIn = new FileInputStream(new File("src/main/resources/Checkbox.ser"));
+                ObjectInputStream is = new ObjectInputStream(fileIn);
+                JFileChooser fileChooser =new JFileChooser();
+                fileChooser.getSelectedFile();
+                checkboxState = (boolean[]) is.readObject();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+            for (int i = 0; i < 256; i++) {
+                JCheckBox check = (JCheckBox) checkboxList.get(i);
+                if (checkboxState[i]) {
+                    check.setSelected(true);
+                } else {
+                    check.setSelected(false);
+                }
+            }
+            sequencer.stop();
+            buildTrackAndStart();
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
